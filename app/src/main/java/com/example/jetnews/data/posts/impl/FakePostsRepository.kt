@@ -5,6 +5,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.lang.IllegalArgumentException
 import com.example.jetnews.data.Result
+import com.example.jetnews.data.successOr
+import kotlinx.coroutines.delay
 
 class FakePostsRepository : PostsRepository {
     override suspend fun getPost(postId: String?): Result<Post> {
@@ -16,6 +18,14 @@ class FakePostsRepository : PostsRepository {
             } else {
                 Result.Success(post)
             }
+        }
+    }
+
+    override suspend fun getPosts(): Result<List<Post>> {
+        return withContext(Dispatchers.IO)
+        {
+            delay(800)
+            Result.Success(posts)
         }
     }
 }
