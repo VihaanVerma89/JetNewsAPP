@@ -5,12 +5,14 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.jetnews.data.AppContainer
+import com.example.jetnews.ui.MainDestinations.ARTICLE_ID_KEY
+import com.example.jetnews.ui.article.ArticleScreen
+import com.example.jetnews.ui.interests.InterestsScreen
 import kotlinx.coroutines.launch
 
 object MainDestinations {
@@ -44,6 +46,19 @@ fun JetNewsNavGraph(
                 postsRepository = appContainer.postsRepository,
                 navigateToArticle = actions.navigateToArticle,
                 openDrawer = openDrawer)
+        }
+        composable(MainDestinations.INTERESTS_ROUTE) {
+            InterestsScreen(
+                interestsRepository = appContainer.interestsRepository,
+                openDrawer = openDrawer
+            )
+        }
+        composable("${MainDestinations.ARTICLE_ROUTE}/{${MainDestinations.ARTICLE_ID_KEY}}") { backStackEntry ->
+            ArticleScreen(
+                postId = backStackEntry.arguments?.getString(ARTICLE_ID_KEY),
+                onBack = actions.upPress,
+                postsRepository = appContainer.postsRepository
+            )
         }
     }
 }

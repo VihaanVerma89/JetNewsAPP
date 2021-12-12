@@ -1,5 +1,6 @@
 package com.example.jetnews.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -24,6 +25,7 @@ import com.example.jetnews.ui.state.UiState
 import com.example.jetnews.utils.produceUiState
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -42,9 +44,7 @@ fun HomeScreen(
         onRefreshPosts = { },
         onErrorDismiss = { },
         navigateToArticle = navigateToArticle,
-        openDrawer = {
-
-        },
+        openDrawer = openDrawer,
         scaffoldState = scaffoldState)
 
 }
@@ -75,10 +75,16 @@ fun HomeScreen(
             InsetAwareTopAppBar(
                 title = { Text(text = title) },
                 navigationIcon = {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_jetnews_logo),
-                        contentDescription = stringResource(R.string.cd_open_navigation_drawer)
-                    )
+                    IconButton(onClick = {
+                        coroutineScope.launch {
+                            openDrawer()
+                        }
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_jetnews_logo),
+                            contentDescription = stringResource(R.string.cd_open_navigation_drawer)
+                        )
+                    }
                 }
             )
         }) {
@@ -87,10 +93,7 @@ fun HomeScreen(
             loading = posts.loading,
             onRefresh = onRefreshPosts,
             content = {
-                HomeScreenErrorAndContent(
-                    posts = posts,
-
-                    )
+                HomeScreenErrorAndContent(posts = posts, navigateToArticle = navigateToArticle)
             }
         )
         FullScreenLoading()
@@ -99,9 +102,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeScreenErrorAndContent(posts: UiState<List<Post>>) {
+private fun HomeScreenErrorAndContent(
+    posts: UiState<List<Post>>,
+    navigateToArticle: (postId: String) -> Unit,
+) {
     if (posts.data != null) {
-        PostList(posts.data, {}, setOf(), {})
+        PostList(posts.data, navigateToArticle = navigateToArticle, setOf(), {})
     }
 }
 
@@ -130,7 +136,7 @@ private fun PostList(
 @Composable
 private fun PostListHistorySection(
     postsHistory: List<Post>,
-    navigateToArticle: (postId: String) -> Unit
+    navigateToArticle: (postId: String) -> Unit,
 ) {
     Column {
         postsHistory.forEach {
@@ -147,7 +153,10 @@ private fun PostListTopSection(post: Post, navigateToArticle: (postId: String) -
         text = stringResource(id = R.string.home_top_section_title),
         style = MaterialTheme.typography.subtitle1
     )
-    PostCardTop(post = post)
+    PostCardTop(
+        post = post,
+        modifier = Modifier.clickable(onClick = { navigateToArticle(post.id) })
+    )
     PostListDivider()
 }
 
