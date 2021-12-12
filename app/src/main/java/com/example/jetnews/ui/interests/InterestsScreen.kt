@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -24,6 +25,7 @@ import com.example.jetnews.data.interests.TopicsMap
 import com.example.jetnews.ui.components.InsetAwareTopAppBar
 import com.example.jetnews.utils.produceUiState
 import com.example.jetnews.utils.supportWideScreen
+import com.google.accompanist.insets.navigationBarsPadding
 import kotlinx.coroutines.launch
 
 
@@ -58,7 +60,32 @@ fun InterestsScreen(
         TopicList(data, selectedTopics, onTopicSelect)
     }
 
-    val tabContent = listOf(topicsSection, topicsSection, topicsSection)
+    val peopleSection = TabContent(Sections.People) {
+        val (people) = produceUiState(interestsRepository) {
+            getPeople()
+        }
+        val selectedPeople by interestsRepository.observePeopleSelected().collectAsState(setOf())
+        val onPeopleSelect: (String) -> Unit = {
+            coroutineScope.launch { interestsRepository.togglePersonSelected(it) }
+        }
+        val data = people.value.data ?: return@TabContent
+        PeopleList(data, selectedPeople, onPeopleSelect)
+    }
+
+    val publicationSection = TabContent(Sections.Publications) {
+        val (publications) = produceUiState(interestsRepository) {
+            getPublications()
+        }
+        val selectedPublications by interestsRepository.observePublicationSelected()
+            .collectAsState(setOf())
+        val onPublicationSelect: (String) -> Unit = {
+            coroutineScope.launch { interestsRepository.togglePublicationSelected(it) }
+        }
+        val data = publications.value.data ?: return@TabContent
+        PublicationList(data, selectedPublications, onPublicationSelect)
+    }
+
+    val tabContent = listOf(topicsSection, peopleSection, publicationSection)
     val (currentSection, updateSection) = rememberSaveable { mutableStateOf(tabContent.first().section) }
     InterestsScreen(
         tabContent = tabContent,
@@ -77,9 +104,9 @@ fun InterestsScreen(
     openDrawer: () -> Unit,
     scaffoldState: ScaffoldState,
 ) {
-    Scaffold(scaffoldState = scaffoldState,
+    Scaffold(
+        scaffoldState = scaffoldState,
         topBar = {
-
             InsetAwareTopAppBar(
                 title = { Text(stringResource(id = R.string.interests_title)) },
                 navigationIcon = {
@@ -89,46 +116,11 @@ fun InterestsScreen(
                             contentDescription = stringResource(R.string.cd_open_navigation_drawer)
                         )
                     }
-                })
-        }) {
-        TabContent(tab, onTabChange, tabContent)
-    }
-}
-
-@Composable
-fun TopicList(
-    topics: TopicsMap,
-    selectedTopics: Set<TopicSelection>,
-    onTopicSelect: (TopicSelection) -> Unit,
-) {
-    TabWithSections(topics, selectedTopics, onTopicSelect)
-}
-
-@Composable
-private fun TabWithSections(
-    sections: TopicsMap,
-    selectedTopics: Set<TopicSelection>,
-    onTopicSelect: (TopicSelection) -> Unit,
-) {
-    LazyColumn()
-    {
-        sections.forEach { (section, topics) ->
-
-            item {
-                Text(text = section,
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .semantics { heading() },
-                    style = MaterialTheme.typography.subtitle1
-                )
-            }
-            items(topics) { topic ->
-                TopicItem(itemTitle = topic,
-                    selected = selectedTopics.contains(TopicSelection(section, topic))) {
                 }
-                TopicDivider()
-            }
+            )
         }
+    ) {
+        TabContent(tab, onTabChange, tabContent)
     }
 }
 
@@ -136,7 +128,7 @@ private fun TabWithSections(
 private fun TabContent(
     currentSection: Sections,
     updateSection: (Sections) -> Unit,
-    tabContent: List<TabContent>,
+    tabContent: List<TabContent>
 ) {
     val selectedTabIndex = tabContent.indexOfFirst { it.section == currentSection }
     Column {
@@ -144,7 +136,8 @@ private fun TabContent(
             selectedTabIndex = selectedTabIndex,
             backgroundColor = MaterialTheme.colors.onPrimary,
             contentColor = MaterialTheme.colors.primary,
-        ) {
+
+            ) {
             tabContent.forEachIndexed { index, tabContent ->
                 val colorText = if (selectedTabIndex == index) {
                     MaterialTheme.colors.primary
@@ -169,11 +162,9 @@ private fun TabContent(
                 }
             }
         }
-
         Divider(
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.1f)
         )
-
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -183,38 +174,126 @@ private fun TabContent(
             tabContent[selectedTabIndex].content()
         }
     }
+}
 
+@Composable
+fun TopicList(
+    topics: TopicsMap,
+    selectedTopics: Set<TopicSelection>,
+    onTopicSelect: (TopicSelection) -> Unit,
+) {
+    TabWithSections(topics, selectedTopics, onTopicSelect)
+}
+
+@Composable
+private fun PeopleList(
+    people: List<String>,
+    selectedPeople: Set<String>,
+    onPersonSelect: (String) -> Unit
+) {
+    TabWithTopics(people, selectedPeople, onPersonSelect)
+}
+
+/**
+ * Display a list for publications tab
+ *
+ * @param publications (state) publications to display
+ * @param selectedPublications (state) currently selected publications
+ * @param onPublicationSelect (event) request a publication selection be changed
+ */
+@Composable
+private fun PublicationList(
+    publications: List<String>,
+    selectedPublications: Set<String>,
+    onPublicationSelect: (String) -> Unit
+) {
+    TabWithTopics(publications, selectedPublications, onPublicationSelect)
+}
+
+/**
+ * Display a simple list of topics
+ *
+ * @param topics (state) topics to display
+ * @param selectedTopics (state) currently selected topics
+ * @param onTopicSelect (event) request a topic selection be changed
+ */
+@Composable
+private fun TabWithTopics(
+    topics: List<String>,
+    selectedTopics: Set<String>,
+    onTopicSelect: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .padding(top = 16.dp)
+            .navigationBarsPadding()
+    ) {
+        items(topics) { topic ->
+            TopicItem(
+                topic,
+                selected = selectedTopics.contains(topic)
+            ) { onTopicSelect(topic) }
+            TopicDivider()
+        }
+    }
 }
 
 
 @Composable
-fun TopicItem(
-    itemTitle: String,
-    selected: Boolean,
-    onToggle: () -> Unit,
+private fun TabWithSections(
+    sections: TopicsMap,
+    selectedTopics: Set<TopicSelection>,
+    onTopicSelect: (TopicSelection) -> Unit
 ) {
+    LazyColumn(Modifier.navigationBarsPadding()) {
+        sections.forEach { (section, topics) ->
+            item {
+                Text(
+                    text = section,
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .semantics { heading() },
+                    style = MaterialTheme.typography.subtitle1
+                )
+            }
+            items(topics) { topic ->
+                TopicItem(
+                    itemTitle = topic,
+                    selected = selectedTopics.contains(TopicSelection(section, topic))
+                ) { onTopicSelect(TopicSelection(section, topic)) }
+                TopicDivider()
+            }
+        }
+    }
+}
 
-    val image = painterResource(id = R.drawable.placeholder_1_1)
+@Composable
+private fun TopicItem(itemTitle: String, selected: Boolean, onToggle: () -> Unit) {
+    val image = painterResource(R.drawable.placeholder_1_1)
     Row(
-        modifier = Modifier.padding(horizontal = 16.dp)
+        modifier = Modifier
+            .toggleable(
+                value = selected,
+                onValueChange = { onToggle() }
+            )
+            .padding(horizontal = 16.dp)
     ) {
-
-        Image(painter = image,
-            contentDescription = null,
+        Image(
+            painter = image,
+            contentDescription = null, // decorative
             modifier = Modifier
-                .align(alignment = Alignment.CenterVertically)
+                .align(Alignment.CenterVertically)
                 .size(56.dp, 56.dp)
                 .clip(RoundedCornerShape(4.dp))
         )
-
-        Text(text = itemTitle,
+        Text(
+            text = itemTitle,
             modifier = Modifier
-                .align(alignment = Alignment.CenterVertically)
+                .align(Alignment.CenterVertically)
                 .padding(16.dp),
-            style = MaterialTheme.typography.subtitle1)
-
-        Spacer(modifier = Modifier.weight(1f))
-
+            style = MaterialTheme.typography.subtitle1
+        )
+        Spacer(Modifier.weight(1f))
         SelectTopicButton(
             modifier = Modifier.align(Alignment.CenterVertically),
             selected = selected
